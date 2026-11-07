@@ -15,11 +15,11 @@ ans=np.array([[0],
             ])
 
 #define functions
-def relu(x):
-      return np.maximum(0, x)
+def lrelu(x):
+      return np.maximum(0.1*x, x)
 
-def relu_derivative(x):
-      return (x > 0).astype(float)
+def lrelu_derivative(x):
+      return (x>0).astype(float) + 0.1*(x<=0).astype(float)
 
 def sigmoid(x):
       x=np.clip(x, -500, 500)
@@ -35,7 +35,7 @@ B2= np.zeros((1, 1))
 #forward pass
 def forward(N0, W1, B1, W2, B2):
       L1 = N0 @ W1 + B1
-      N1 = relu(L1)
+      N1 = lrelu(L1)
       L2 = N1 @ W2 + B2
       N2 = sigmoid(L2)
       return L1, N1, L2, N2
@@ -60,7 +60,7 @@ def backpropagate(N0, ans, W2, L1, N1, N2):
 
       # Carry the output gradient back through the hidden layer and ReLU
       dN1 = dL2 @ W2.T
-      dL1 = dN1 * relu_derivative(L1)
+      dL1 = dN1 * lrelu_derivative(L1)
 
       # Gradients for the input-to-hidden parameters
       dW1 = N0.T @ dL1
@@ -78,20 +78,6 @@ def adjust_parameters(parameters, gradients, optimizer, learning_rate, state, st
                   state[name] = momentum * state[name] + gradients[name]
                   parameters[name] -= learning_rate * state[name]
 
-      elif optimizer == "Adam":
-            beta1 = 0.9
-            beta2 = 0.999
-            epsilon = 1e-8
-            for name in parameters:
-                  gradient = gradients[name]
-                  state["m"][name] = beta1 * state["m"][name] + (1 - beta1) * gradient
-                  state["v"][name] = beta2 * state["v"][name] + (1 - beta2) * gradient**2
-
-                  # Correct the early-step bias in Adam's moving averages
-                  m_hat = state["m"][name] / (1 - beta1**step)
-                  v_hat = state["v"][name] / (1 - beta2**step)
-                  parameters[name] -= learning_rate * m_hat / (np.sqrt(v_hat) + epsilon)
-
 def main():
       global W1, B1, W2, B2
 
@@ -101,24 +87,17 @@ def main():
       print("\nChoose an optimization algorithm:")
       print("1. SGD (simple gradient descent)")
       print("2. Momentum (smooths updates across steps)")
-      print("3. Adam (adaptive step sizes)")
-      choice = input("Enter 1, 2, or 3: ")
-      optimizer_names = {"1": "SGD", "2": "Momentum", "3": "Adam"}
+      choice = input("Enter 1, or 2:")
+      optimizer_names = {"1": "SGD", "2": "Momentum"}
       if choice not in optimizer_names:
-            raise ValueError("Choose 1, 2, or 3.")
+            raise ValueError("Choose 1 or 2. ")
       optimizer = optimizer_names[choice]
 
       learning_rate = float(input("Starting learning rate: "))
 
       parameters = {"W1": W1, "B1": B1, "W2": W2, "B2": B2}
-      if optimizer == "Adam":
-            state = {
-                  "m": {name: np.zeros_like(value) for name, value in parameters.items()},
-                  "v": {name: np.zeros_like(value) for name, value in parameters.items()},
-            }
-      else:
-            # Momentum keeps one velocity array for each parameter.
-            state = {name: np.zeros_like(value) for name, value in parameters.items()}
+      # Momentum keeps one velocity array for each parameter.
+      state = {name: np.zeros_like(value) for name, value in parameters.items()}
 
       print(f"\nTraining with {optimizer}, learning rate {learning_rate}\n")
       for step in range(1, iterations + 1):
@@ -135,8 +114,6 @@ def main():
             print(np.round(N2, 4))
             print(f"Loss (MSE): {current_loss:.8f}")
             print(f"Perceptual score: {perceptual_loss(current_loss):.4f}\n")
-
-
 if __name__ == "__main__":
       main()
 
