@@ -51,6 +51,8 @@ print("loss = ", CurrentLoss)
 
 #BACKPROPAGATION
 
+learning_rate = float(input("Learning rate: "))
+
 #backpropagation: output layer
 dN2 = (2 / ans.size) * (N2 - ans)
 dL2 = dN2 * N2 * (1 - N2)
@@ -66,6 +68,21 @@ dB2 = np.sum(dL2, axis=0, keepdims=True)
 
 print("dW2 =", dW2)
 print("dB2 =", dB2)
+
+#carry the output gradient back to the hidden layer
+dN1 = dL2 @ W2.T
+
+#carry it through the ReLU activation
+dL1 = dN1 * relu_derivative(L1)
+
+#gradients for the input-to-hidden parameters
+dW1 = N0.T @ dL1
+dB1 = np.sum(dL1, axis=0, keepdims=True)
+
+print("dW1 =", dW1)
+print("dB1 =", dB1)
+
+
 
 
 
