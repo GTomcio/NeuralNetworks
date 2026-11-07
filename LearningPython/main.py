@@ -39,53 +39,106 @@ def forward(N0, W1, B1, W2, B2):
       L2 = N1 @ W2 + B2
       N2 = sigmoid(L2)
       return L1, N1, L2, N2
-L1, N1, L2, N2 = forward(N0, W1, B1, W2, B2)
 
 #loss function
 def loss(ans, N2):
       return np.mean((ans - N2)**2)
-CurrentLoss = loss(ans, N2)
 
-print("N2 = ", N2)
-print("loss = ", CurrentLoss)
-
-#BACKPROPAGATION
-
-learning_rate = float(input("Learning rate: "))
-
-#backpropagation: output layer
-dN2 = (2 / ans.size) * (N2 - ans)
-dL2 = dN2 * N2 * (1 - N2)
-
-#gradients for the output-layer parameters
-dW2 = N1.T @ dL2
-dB2 = np.sum(dL2, axis=0, keepdims=True)
-
-#carry the output gradient back to the hidden layer
-dN1 = dL2 @ W2.T
-
-#carry it through the ReLU activation
-dL1 = dN1 * relu_derivative(L1)
-
-#gradients for the input-to-hidden parameters
-dW1 = N0.T @ dL1
-dB1 = np.sum(dL1, axis=0, keepdims=True)
-
-W1 -= learning_rate * dW1
-B1 -= learning_rate * dB1
-W2 -= learning_rate * dW2
-B2 -= learning_rate * dB2
-
-L1, N1, L2, N2 = forward(N0, W1, B1, W2, B2)
-UpdatedLoss = loss(ans, N2)
-
-print("DLoss = ", UpdatedLoss - CurrentLoss)
-
-def chaos_score(current_loss):
+def perceptual_loss(current_loss):
+      # Display-only score: 0 means ideal; 1 means very poor/uncertain.
+      # MSE is 0.25 when every prediction is 0.5, so this maps that baseline to 1.
       return min(1.0, 2 * np.sqrt(current_loss))
-print("Chaos =", chaos_score(UpdatedLoss))
+
+def backpropagate(N0, ans, W2, L1, N1, N2):
+      # Backpropagation: output layer
+      dN2 = (2 / ans.size) * (N2 - ans)
+      dL2 = dN2 * N2 * (1 - N2)
+
+      # Gradients for the output-layer parameters
+      dW2 = N1.T @ dL2
+      dB2 = np.sum(dL2, axis=0, keepdims=True)
+
+      # Carry the output gradient back through the hidden layer and ReLU
+      dN1 = dL2 @ W2.T
+      dL1 = dN1 * relu_derivative(L1)
+
+      # Gradients for the input-to-hidden parameters
+      dW1 = N0.T @ dL1
+      dB1 = np.sum(dL1, axis=0, keepdims=True)
+      return {"W1": dW1, "B1": dB1, "W2": dW2, "B2": dB2}
+
+def adjust_parameters(parameters, gradients, optimizer, learning_rate, state, step):
+      if optimizer == "SGD":
+            for name in parameters:
+                  parameters[name] -= learning_rate * gradients[name]
+
+      elif optimizer == "Momentum":
+            momentum = 0.9
+            for name in parameters:
+                  state[name] = momentum * state[name] + gradients[name]
+                  parameters[name] -= learning_rate * state[name]
+
+      elif optimizer == "Adam":
+            beta1 = 0.9
+            beta2 = 0.999
+            epsilon = 1e-8
+            for name in parameters:
+                  gradient = gradients[name]
+                  state["m"][name] = beta1 * state["m"][name] + (1 - beta1) * gradient
+                  state["v"][name] = beta2 * state["v"][name] + (1 - beta2) * gradient**2
+
+                  # Correct the early-step bias in Adam's moving averages
+                  m_hat = state["m"][name] / (1 - beta1**step)
+                  v_hat = state["v"][name] / (1 - beta2**step)
+                  parameters[name] -= learning_rate * m_hat / (np.sqrt(v_hat) + epsilon)
+
+def main():
+      global W1, B1, W2, B2
+
+      # Ask how many full-batch training cycles to run
+      iterations = int(input("Number of training iterations: "))
+
+      print("\nChoose an optimization algorithm:")
+      print("1. SGD (simple gradient descent)")
+      print("2. Momentum (smooths updates across steps)")
+      print("3. Adam (adaptive step sizes)")
+      choice = input("Enter 1, 2, or 3: ")
+      optimizer_names = {"1": "SGD", "2": "Momentum", "3": "Adam"}
+      if choice not in optimizer_names:
+            raise ValueError("Choose 1, 2, or 3.")
+      optimizer = optimizer_names[choice]
+
+      learning_rate = float(input("Starting learning rate: "))
+
+      parameters = {"W1": W1, "B1": B1, "W2": W2, "B2": B2}
+      if optimizer == "Adam":
+            state = {
+                  "m": {name: np.zeros_like(value) for name, value in parameters.items()},
+                  "v": {name: np.zeros_like(value) for name, value in parameters.items()},
+            }
+      else:
+            # Momentum keeps one velocity array for each parameter.
+            state = {name: np.zeros_like(value) for name, value in parameters.items()}
+
+      print(f"\nTraining with {optimizer}, learning rate {learning_rate}\n")
+      for step in range(1, iterations + 1):
+            # One cycle: forward -> measure -> backpropagate -> adjust -> forward again
+            L1, N1, _, N2 = forward(N0, W1, B1, W2, B2)
+            gradients = backpropagate(N0, ans, W2, L1, N1, N2)
+            adjust_parameters(parameters, gradients, optimizer, learning_rate, state, step)
+
+            # Show measurements after this update, so each row reflects the new parameters.
+            _, _, _, N2 = forward(N0, W1, B1, W2, B2)
+            current_loss = loss(ans, N2)
+            print(f"Step {step}/{iterations}")
+            print("Predictions:")
+            print(np.round(N2, 4))
+            print(f"Loss (MSE): {current_loss:.8f}")
+            print(f"Perceptual score: {perceptual_loss(current_loss):.4f}\n")
 
 
+if __name__ == "__main__":
+      main()
 
 
 
