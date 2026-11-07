@@ -57,17 +57,9 @@ learning_rate = float(input("Learning rate: "))
 dN2 = (2 / ans.size) * (N2 - ans)
 dL2 = dN2 * N2 * (1 - N2)
 
-print("dN2 =", dN2)
-print("dL2 =", dL2)
-
-print("weights: ", W1, W2)
-
 #gradients for the output-layer parameters
 dW2 = N1.T @ dL2
 dB2 = np.sum(dL2, axis=0, keepdims=True)
-
-print("dW2 =", dW2)
-print("dB2 =", dB2)
 
 #carry the output gradient back to the hidden layer
 dN1 = dL2 @ W2.T
@@ -79,8 +71,19 @@ dL1 = dN1 * relu_derivative(L1)
 dW1 = N0.T @ dL1
 dB1 = np.sum(dL1, axis=0, keepdims=True)
 
-print("dW1 =", dW1)
-print("dB1 =", dB1)
+W1 -= learning_rate * dW1
+B1 -= learning_rate * dB1
+W2 -= learning_rate * dW2
+B2 -= learning_rate * dB2
+
+L1, N1, L2, N2 = forward(N0, W1, B1, W2, B2)
+UpdatedLoss = loss(ans, N2)
+
+print("DLoss = ", UpdatedLoss - CurrentLoss)
+
+def chaos_score(current_loss):
+      return min(1.0, 2 * np.sqrt(current_loss))
+print("Chaos =", chaos_score(UpdatedLoss))
 
 
 
