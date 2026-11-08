@@ -57,9 +57,6 @@ def forward(I, W1, B1, W2, B2, W3, B3):
 
     return L1, N1, L2, N2, L3, N3
 
-#call forward pass
-L1, N1, L2, N2, L3, N3 = forward(I, W1, B1, W2, B2, W3, B3)
-
 ##############################################################
 
 #define decoder widths
@@ -70,14 +67,14 @@ DN2_size = 576
 DN3_size = 784
 
 #define decoder weight matrices
-DW1 = np.random.randn(DI_size, DN1_size).astype(np.float32) * 0.01
-DW2 = np.random.randn(DN1_size, DN2_size).astype(np.float32) * 0.01
-DW3 = np.random.randn(DN2_size, DN3_size).astype(np.float32) * 0.01
+AW1 = np.random.randn(DI_size, DN1_size).astype(np.float32) * 0.01
+AW2 = np.random.randn(DN1_size, DN2_size).astype(np.float32) * 0.01
+AW3 = np.random.randn(DN2_size, DN3_size).astype(np.float32) * 0.01
 
 #define decoder bias vectors
-DB1 = np.zeros(DN1_size).astype(np.float32)
-DB2 = np.zeros(DN2_size).astype(np.float32)
-DB3 = np.zeros(DN3_size).astype(np.float32)
+AB1 = np.zeros(DN1_size).astype(np.float32)
+AB2 = np.zeros(DN2_size).astype(np.float32)
+AB3 = np.zeros(DN3_size).astype(np.float32)
 
 #define sigmoid
 def sigmoid(x):
@@ -85,18 +82,15 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 #define decoder forward pass
-def decoder_forward(DI, DW1, DB1, DW2, DB2, DW3, DB3):
-     DL1 = DI @ DW1 + DB1
+def decoder_forward(DI, AW1, AB1, AW2, AB2, AW3, AB3):
+     DL1 = DI @ AW1 + AB1
      DN1 = ReLu(DL1)
-     DL2 = DN1 @ DW2 + DB2
+     DL2 = DN1 @ AW2 + AB2
      DN2 = ReLu(DL2)
-     DL3 = DN2 @ DW3 + DB3
+     DL3 = DN2 @ AW3 + AB3
      DN3 = sigmoid(DL3)
 
      return DL1, DN1, DL2, DN2, DL3, DN3
-
-#call decoder forward pass
-DL1, DN1, DL2, DN2, DL3, DN3 = decoder_forward(N3, DW1, DB1, DW2, DB2, DW3, DB3)
 
 ###############################################################
 
@@ -107,11 +101,97 @@ def loss(DN3, I):
 #define backpropagation
 def backpropagate(I, N1, N2, N3, L1, L2, L3,
                   DN1, DN2, DN3, DL1, DL2, DL3,
-                  W1, W2, W3, DW1, DW2, DW3):
+                  W1, W2, W3, AW1, AW2, AW3):
     
     dDL3 = (2 / I.size) * (DN3 - I) * DN3 * (1 - DN3)
 
-    dDW3 = np.outer(DN2, dDL3)
-    dDB3 = dDL3
-    dDN2 = dDL3 @ DW3.T
+   # Decoder layer 3
+    dAW3 = np.outer(DN2, dDL3)
+    dAB3 = dDL3
+    dDN2 = dDL3 @ AW3.T
+
+    # Decoder layer 2: ReLU
+    dDL2 = dDN2 * Relu_derivative(DL2)
+    dAW2 = np.outer(DN1, dDL2)
+    dAB2 = dDL2
+    dDN1 = dDL2 @ AW2.T
+
+    # Decoder layer 1: ReLU
+    dDL1 = dDN1 * Relu_derivative(DL1)
+    dAW1 = np.outer(N3, dDL1)
+    dAB1 = dDL1
+    dN3 = dDL1 @ AW1.T
+
+    # Encoder layer 3: ReLU
+    dL3 = dN3 * Relu_derivative(L3)
+    dW3 = np.outer(N2, dL3)
+    dB3 = dL3
+    dN2 = dL3 @ W3.T
+
+    # Encoder layer 2: ReLU
+    dL2 = dN2 * Relu_derivative(L2)
+    dW2 = np.outer(N1, dL2)
+    dB2 = dL2
+    dN1 = dL2 @ W2.T
+
+    # Encoder layer 1: ReLU
+    dL1 = dN1 * Relu_derivative(L1)
+    dW1 = np.outer(I, dL1)
+    dB1 = dL1
+
+    return {
+        "AW1": dAW1, "AB1": dAB1,
+        "AW2": dAW2, "AB2": dAB2,
+        "AW3": dAW3, "AB3": dAB3,
+        "W1": dW1, "B1": dB1,
+        "W2": dW2, "B2": dB2,
+        "W3": dW3, "B3": dB3,
+    }
+
+#list of parameters
+parameters = [W1, B1, W2, B2, W3, B3,
+              AW1, AB1, AW2, AB2, AW3, AB3]
+
+#list of gradients
+gradients = {"AW1": dAW1, "AB1": dAB1,
+             "AW2": dAW2, "AB2": dAB2,"AW3": dAW3, "AB3": dAB3,
+            "W1": dW1, "B1": dB1,
+            "W2": dW2, "B2": dB2,
+            "W3": dW3, "B3": dB3}
+
+#parameter update
+def parameter_update(parameters, gradients, learning_rate):
+    for parameters, gradients in zip(parameters, gradients):
+        parameters -= learning_rate * gradients
+
+#####################################################################
+
+#training loop
+training_repetitions = int(input("Enter training_repetitions: "))
+learning_rate = float(input("Enter learning_rate: "))
+
+i=0
+for repetition in range(training_repetitions):
+    #call forward pass
+    L1, N1, L2, N2, L3, N3 = forward(I, W1, B1, W2, B2, W3, B3)
+
+    #call decoder forward pass
+    DL1, DN1, DL2, DN2, DL3, DN3 = decoder_forward(N3, AW1, AB1, AW2, AB2, AW3, AB3)
+
+    #call loss
+    current_loss = loss(DN3, I)
+
+    #call backpropagation
+    
+    #call parameter update
+    parameter_update(parameters, gradients, learning_rate)
+
+    #print update
+    print("iteration", i, "loss:", current_loss)
+
+    #update counter
+    i=i+1
+
+
+
 
