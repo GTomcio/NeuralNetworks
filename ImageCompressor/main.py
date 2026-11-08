@@ -148,21 +148,28 @@ def backpropagate(I, N1, N2, N3, L1, L2, L3,
         "W3": dW3, "B3": dB3,
     }
 
-#list of parameters
-parameters = [W1, B1, W2, B2, W3, B3,
-              AW1, AB1, AW2, AB2, AW3, AB3]
+#define parameters
+parameters = {
+    "W1": W1, "B1": B1,
+    "W2": W2, "B2": B2,
+    "W3": W3, "B3": B3,
+    "AW1": AW1, "AB1": AB1,
+    "AW2": AW2, "AB2": AB2,
+    "AW3": AW3, "AB3": AB3,
+}
 
-#list of gradients
-gradients = {"AW1": dAW1, "AB1": dAB1,
-             "AW2": dAW2, "AB2": dAB2,"AW3": dAW3, "AB3": dAB3,
-            "W1": dW1, "B1": dB1,
-            "W2": dW2, "B2": dB2,
-            "W3": dW3, "B3": dB3}
-
-#parameter update
+#define parameter update
 def parameter_update(parameters, gradients, learning_rate):
-    for parameters, gradients in zip(parameters, gradients):
-        parameters -= learning_rate * gradients
+    parameters = {
+    "W1": W1, "B1": B1,
+    "W2": W2, "B2": B2,
+    "W3": W3, "B3": B3,
+    "AW1": AW1, "AB1": AB1,
+    "AW2": AW2, "AB2": AB2,
+    "AW3": AW3, "AB3": AB3,
+    }
+    for name in parameters:
+        parameters[name] -= learning_rate * gradients[name]
 
 #####################################################################
 
@@ -171,7 +178,9 @@ training_repetitions = int(input("Enter training_repetitions: "))
 learning_rate = float(input("Enter learning_rate: "))
 
 i=0
+
 for repetition in range(training_repetitions):
+
     #call forward pass
     L1, N1, L2, N2, L3, N3 = forward(I, W1, B1, W2, B2, W3, B3)
 
@@ -182,7 +191,11 @@ for repetition in range(training_repetitions):
     current_loss = loss(DN3, I)
 
     #call backpropagation
-    
+    gradients = backpropagate(
+    I, N1, N2, N3, L1, L2, L3,
+    DN1, DN2, DN3, DL1, DL2, DL3,
+    W1, W2, W3, AW1, AW2, AW3
+    )
     #call parameter update
     parameter_update(parameters, gradients, learning_rate)
 
