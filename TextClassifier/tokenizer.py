@@ -5,9 +5,6 @@ x = int(input("Enter the number of reviews to load: "))
 texts = []
 labels = []
 
-texts = texts[:x]
-labels = labels[:x]
-
 data_path = Path(__file__).parent / "processed.csv"
 
 with data_path.open("r", encoding="utf-8", newline="") as file:
@@ -16,6 +13,10 @@ with data_path.open("r", encoding="utf-8", newline="") as file:
     for row in reader:
         texts.append(row["selected_text"].strip())
         labels.append(row["sentiment"].strip())
+
+# Keep only the first x reviews and their matching labels.
+texts = texts[:x]
+labels = labels[:x]
 
 print(f"Loaded {len(texts)} reviews and {len(labels)} labels")
 print(texts[0])
@@ -50,6 +51,7 @@ def vectorize(text, word_to_index):
 
     return vector
 
+word_to_index = build_vocab(texts)
 vector = vectorize(texts[0], word_to_index)
 print("Vector length:", len(vector))
 print("Words present:", sum(count > 0 for count in vector))
