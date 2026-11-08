@@ -1,0 +1,1 @@
+This is a trainable neural network that solves the XOR problem
