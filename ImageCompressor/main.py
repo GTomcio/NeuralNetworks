@@ -159,10 +159,18 @@ parameters = {
     "AW3": AW3, "AB3": AB3,
 }
 
+#initialize velocity
+velocity = {
+    name: np.zeros_like(parameter)
+    for name, parameter in parameters.items()
+}
+
 #define parameter update
-def parameter_update(parameters, gradients, learning_rate):
+def parameter_update(parameters, gradients, velocity, learning_rate):
+
     for name in parameters:
-        parameters[name] -= learning_rate * gradients[name]
+        velocity[name] = momentum * velocity[name] + gradients[name]
+        parameters[name] -= learning_rate * velocity[name]
 
 #####################################################################
 
@@ -170,6 +178,7 @@ def parameter_update(parameters, gradients, learning_rate):
 training_repetitions = int(input("training_repetitions = "))
 learning_rate = float(input("learning_rate = "))
 number_of_images = int(input("number_of_images = "))
+momentum = float(input("momentum = "))
 
 i=1
 
@@ -191,7 +200,7 @@ for repetition in range(training_repetitions):
         W1, W2, W3, AW1, AW2, AW3
         )
         #call parameter update
-        parameter_update(parameters, gradients, learning_rate)
+        parameter_update(parameters, gradients, velocity, learning_rate)
     
         #print update
         print("iteration", i, "loss:", current_loss)
