@@ -26,7 +26,7 @@ n2_size = 484
 o_size = 256
 
 #define input vector
-I = images[0]
+I = images[1]
 
 #define weight matrices
 W1 = np.random.randn(i_size, n1_size).astype(np.float32) * 0.01
@@ -160,14 +160,6 @@ parameters = {
 
 #define parameter update
 def parameter_update(parameters, gradients, learning_rate):
-    parameters = {
-    "W1": W1, "B1": B1,
-    "W2": W2, "B2": B2,
-    "W3": W3, "B3": B3,
-    "AW1": AW1, "AB1": AB1,
-    "AW2": AW2, "AB2": AB2,
-    "AW3": AW3, "AB3": AB3,
-    }
     for name in parameters:
         parameters[name] -= learning_rate * gradients[name]
 
@@ -176,31 +168,32 @@ def parameter_update(parameters, gradients, learning_rate):
 #training loop
 training_repetitions = int(input("Enter training_repetitions: "))
 learning_rate = float(input("Enter learning_rate: "))
+number_of_images = int(input("Enter number_of_images: "))
 
 i=0
 
 for repetition in range(training_repetitions):
+    for I in images[:number_of_images]:
+        #call forward pass
+        L1, N1, L2, N2, L3, N3 = forward(I, W1, B1, W2, B2, W3, B3)
 
-    #call forward pass
-    L1, N1, L2, N2, L3, N3 = forward(I, W1, B1, W2, B2, W3, B3)
+        #call decoder forward pass
+        DL1, DN1, DL2, DN2, DL3, DN3 = decoder_forward(N3, AW1, AB1, AW2, AB2, AW3, AB3)
 
-    #call decoder forward pass
-    DL1, DN1, DL2, DN2, DL3, DN3 = decoder_forward(N3, AW1, AB1, AW2, AB2, AW3, AB3)
+        #call loss
+        current_loss = loss(DN3, I)
 
-    #call loss
-    current_loss = loss(DN3, I)
-
-    #call backpropagation
-    gradients = backpropagate(
-    I, N1, N2, N3, L1, L2, L3,
-    DN1, DN2, DN3, DL1, DL2, DL3,
-    W1, W2, W3, AW1, AW2, AW3
-    )
-    #call parameter update
-    parameter_update(parameters, gradients, learning_rate)
-
-    #print update
-    print("iteration", i, "loss:", current_loss)
+        #call backpropagation
+        gradients = backpropagate(
+        I, N1, N2, N3, L1, L2, L3,
+        DN1, DN2, DN3, DL1, DL2, DL3,
+        W1, W2, W3, AW1, AW2, AW3
+        )
+        #call parameter update
+        parameter_update(parameters, gradients, learning_rate)
+    
+        #print update
+        print("iteration", i, "loss:", current_loss)
 
     #update counter
     i=i+1
