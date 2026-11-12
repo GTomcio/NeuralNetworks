@@ -8,9 +8,10 @@ ready for a set-based PyTorch model: examples have a common padded length and
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, cast
 
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 import torch
 
@@ -164,13 +165,20 @@ def export_dataset(
     destination = Path(data_dir) / split / filename
     destination.parent.mkdir(parents=True, exist_ok=True)
 
+    tensor_batch = cast(dict[str, torch.Tensor], batch)
     arrays = {
         key: value.detach().cpu().numpy()
-        for key, value in batch.items()
+        for key, value in tensor_batch.items()
     }
     np.savez_compressed(
         destination,
-        **arrays,
+        x=arrays["x"],
+        y=arrays["y"],
+        y_clean=arrays["y_clean"],
+        mask=arrays["mask"],
+        params=arrays["params"],
+        n_points=arrays["n_points"],
+        outlier_mask=arrays["outlier_mask"],
         param_names=np.asarray(["a", "b", "c"]),
         equation=np.asarray("y = a * exp(b * x) + c"),
         format_version=np.asarray(1, dtype=np.int32),
@@ -184,7 +192,7 @@ def plot_batch(
     num_curves: int = 4,
     save_path: str | Path | None = None,
     show: bool = True,
-) -> tuple[plt.Figure, np.ndarray]:
+) -> tuple[Figure, np.ndarray]:
     """Plot noisy points, injected outliers and the underlying clean curves.
 
     Returns ``(figure, axes)`` so callers can further customize or close the

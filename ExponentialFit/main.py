@@ -41,9 +41,31 @@ def load_dataset(split, batch_size=x):
 train_loader = load_dataset("train")
 test_loader = load_dataset("test")
 
+#define batch size and numper of curves
+N = x
+B = 10000/N
 #define structure
-point_features = 2
-embedding_size = 64
-score_hidden_size = 64
-#a, b, c
-parameter_count = 3
+point_features = [B, N, 2]
+point_representation = [B, N, 64]
+point_eval = [B, N, 64]
+point_value = [B, N, 1]
+
+#define forward pass
+
+class Respresentation(nn.Module):
+    def _init_(self):
+        super().__init__()
+        self.representation = nn.Sequential(
+            nn.Linear(2, 64)
+            nn.GELU
+            nn.Linear(64, 64)
+            nn.GELU
+        )
+
+        self.evaluator = nn.Sequential(
+            nn.Linear(64, 32)
+            nn.GELU
+            nn.Linear(32, 1)
+            nn.
+        )
+
