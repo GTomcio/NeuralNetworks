@@ -1,13 +1,13 @@
-"""Load generated exponential-curve datasets for a PyTorch model."""
-
+#########################################################################
 from pathlib import Path
-
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+import matplotlib.pyplot as plt
+#########################################################################
 
-
+#########################################################################
 # Select a GPU when one is available; otherwise use the CPU.
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", DEVICE)
@@ -53,13 +53,17 @@ def load_dataset(split: str, batch_size: int) -> DataLoader:
         num_workers=0,
         pin_memory=(DEVICE.type == "cuda"),
     )
+##################################################################################
 
+##################################################################################
 #define pointFeatures nn
 class pointFeatures(nn.Module):
-    def __init__(self, feature_size: int = 32):
+    def __init__(self, feature_size: int = 64):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(2, feature_size),
+            nn.ReLU(),
+            nn.Linear(feature_size, feature_size),
             nn.ReLU(),
             nn.Linear(feature_size, feature_size),
             nn.ReLU(),
@@ -69,9 +73,11 @@ class pointFeatures(nn.Module):
 
 #define parameterPredictor nn
 class parameterPredictor(nn.Module):
-    def __init__(self, feature_size: int = 32):
+    def __init__(self, feature_size: int = 64):
         super().__init__()
         self.network = nn.Sequential(
+            nn.Linear(feature_size, feature_size),
+            nn.ReLU(),
             nn.Linear(feature_size, feature_size),
             nn.ReLU(),
             nn.Linear(feature_size, feature_size),
@@ -80,12 +86,14 @@ class parameterPredictor(nn.Module):
         )
     def forward(self, curve_features):
         return self.network(curve_features)
+####################################################################
 
+####################################################################
 #load data to DEVICE
 if __name__ == "__main__":
 
     #load datasets
-    batch_size = int(input("batch_size= "))
+    batch_size = int(input("batch_size = "))
     train_loader = load_dataset("train", batch_size)
     test_loader = load_dataset("test", batch_size)
 
@@ -104,7 +112,7 @@ if __name__ == "__main__":
     )
 
     #enter #epochs
-    epochs = int(input("epochs ="))
+    epochs = int(input("epochs = "))
     for epoch in range(epochs):
         #zero counts
         total_loss = 0.0
@@ -148,7 +156,77 @@ if __name__ == "__main__":
 
         average_loss = total_loss / total_curves
         print(f"Epoch {epoch + 1}/{epochs}, average loss: {average_loss:.6f}")
+##################################################################################
 
+##################################################################################
+    #testing pass
+    point_features.eval()
+    parameter_predictor.eval()
+
+    test_curves = []
+    test_loss_total = 0.0
+    test_curve_count = 0
+
+    with torch.no_grad():
+        for batch in test_loader:
+            x_points, y_points, y_true, valid_mask, curve_params, outlier_mask = batch
+
+            inputs = torch.stack((x_points, y_points), dim=-1).to(DEVICE)
+            mask = valid_mask.to(DEVICE)
+            mask_3d = mask.unsqueeze(-1)
+
+            features = point_features(inputs)
+            feature_sum = (features * mask_3d).sum(dim=1)
+            point_count = mask_3d.sum(dim=1).clamp(min=1)
+            curve_features = feature_sum / point_count
+
+            parameters = parameter_predictor(curve_features)
+            targets = curve_params.to(DEVICE).float()
+            loss = loss_function(parameters, targets)
+
+            batch_size_now = targets.size(0)
+            test_loss_total += loss.item() * batch_size_now
+            test_curve_count += batch_size_now
+
+            # Save each curve's real points and predicted [a, b, c].
+            for i in range(batch_size_now):
+                valid = valid_mask[i].bool()
+
+                test_curves.append((
+                    x_points[i][valid].numpy(),
+                    y_points[i][valid].numpy(),
+                    y_true[i][valid].numpy(),
+                    parameters[i].cpu().numpy(),
+                ))
+
+    average_test_loss = test_loss_total / test_curve_count
+    print(f"Average test loss: {average_test_loss:.6f}")
+################################################################################
+
+################################################################################
+    # Select and plot one randomly chosen test curve.
+    selected_index = np.random.randint(len(test_curves))
+
+    x_observed, y_observed, y_real, guessed_params = test_curves[selected_index]
+
+    a, b, c = guessed_params
+    x_line = np.linspace(x_observed.min(), x_observed.max(), 200)
+    y_line = a * np.exp(b * x_line) + c
+
+    a, b, c = guessed_params
+    x_line = np.linspace(x_observed.min(), x_observed.max(), 200)
+    y_line = a * np.exp(b * x_line) + c
+
+    order = np.argsort(x_observed)
+
+    plt.scatter(x_observed, y_observed, label="Observed test points")
+    plt.plot(x_observed[order], y_real[order], label="Real curve")
+    plt.plot(x_line, y_line, color="red", label="Model's predicted curve")
+
+    plt.title(f"Random test curve #{selected_index}")
+    plt.legend()
+    plt.show()
+##################################################################################
 
 
 
