@@ -25,20 +25,21 @@ def load_dataset():
       if not parameters_path.exists():
             raise ValueError(f"couldnt find {parameters_path}")
 
-      #verify data structure
       curve_keys = (
             "x_points",
             "y_points",
             "valid_mask",
       )
+
       with np.load(curves_path, allow_pickle=False) as data:
             missing_keys = [key for key in curve_keys if key not in data.files]
             if missing_keys:
                   raise ValueError(f"{curves_path} is missing {missing_keys}")
 
-      curve_tensors = [torch.from_numpy(data[key].copy()) for key in curve_keys]
-
-      curves = {key: torch.from_numpy(data[key].copy()) for key in curve_keys}
+            curves = {
+                  key: torch.from_numpy(data[key].copy())
+                  for key in curve_keys
+            }
 
       parameters = torch.load(
             parameters_path,
@@ -95,3 +96,29 @@ if __name__ == "__main__":
       #set networks to evaluation mode
       point_features.eval()
       parameter_predictor.eval()
+
+      #load curves do DEVICE
+      x_points = curves["x_points"].to(DEVICE).float()
+      y_points = curves["y_points"].to(DEVICE).float()
+      valid_mask = curves["valid_mask"].to(DEVICE).bool()
+
+      #construct a [curves, points, 2] tensor
+      inputs = torch.stack((x_points, y_points), dim=-1)\
+
+      #turn mask from [curves, points] to [curves, points, 1]
+      mask = valid_mask.unsqueeze(-1)
+
+      #calculate
+      with torch.no_grad():
+            #call point_features
+            features = point_features(inputs)
+
+            #equalize features
+            feature_sum = (features * mask).sum(dim=1)
+            point_count = mask.sum(dim=1).clamp(min=1)
+            curve_features = feature_sum / point_count
+
+            #call parameter_predictor
+            predicted_abc = parameter_predictor(curve_features)
+
+      print(predicted_abc.cpu())

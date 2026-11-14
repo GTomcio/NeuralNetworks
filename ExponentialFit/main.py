@@ -201,6 +201,24 @@ if __name__ == "__main__":
 
     average_test_loss = test_loss_total / test_curve_count
     print(f"Average test loss: {average_test_loss:.6f}")
+
+    # save the trained model weights for MODEL/model.py
+    bool = str(input("save parameters? y - yes"))
+    if bool == "y":
+        checkpoint = {
+            "point_features": point_features.state_dict(),
+            "parameter_predictor": parameter_predictor.state_dict(),
+            "feature_size": 128,
+            "format_version": 1,
+        }
+
+        checkpoint_dir = Path(__file__).resolve().parent / "MODEL" / "data"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        checkpoint_path = checkpoint_dir / "parameters.pt"
+        torch.save(checkpoint, checkpoint_path)
+
+        print(f"Saved model checkpoint to: {checkpoint_path}")
 ################################################################################
 
 ################################################################################

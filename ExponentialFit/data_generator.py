@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 #########################################################################
 
 # Keep generated files in this project's data folder.
-DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR = Path(__file__).resolve().parent / "MODEL"/ "data"
 
 
 # Name and type the tensors returned by generate_batch.
