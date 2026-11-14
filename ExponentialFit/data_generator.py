@@ -146,7 +146,6 @@ def generate_batch(
         "outlier_mask": torch.as_tensor(outlier_mask, device=target_device),
     }
 
-
 #########################################################################
 # Save generated datasets for main.py
 #########################################################################
@@ -194,101 +193,6 @@ def export_dataset(
     )
     # Return the full path so the caller can display or reuse it.
     return destination
-
-
-#########################################################################
-# Optional plotting for inspecting generated data
-#########################################################################
-
-# Draw selected curves and optionally save or display the figure.
-def plot_batch(
-    batch: CurveBatch,
-    *,
-    num_curves: int = 4,
-    save_path: str | Path | None = None,
-    show: bool = True,
-) -> tuple["Figure", np.ndarray]:
-    # Plot noisy points and the true curves for a quick visual check.
-    # Import plotting here so it is needed only when this function is called.
-    import matplotlib.pyplot as plt
-
-    # Check the requested number of curves before plotting.
-    batch_size = int(batch["x_points"].shape[0])
-    if num_curves < 1 or num_curves > batch_size:
-        raise ValueError("num_curves must be between 1 and batch size")
-
-    # Convert tensors to NumPy arrays for Matplotlib.
-    x_array = batch["x_points"].detach().cpu().numpy()
-    y_points = batch["y_points"].detach().cpu().numpy()
-    y_true = batch["y_true"].detach().cpu().numpy()
-    valid_mask = batch["valid_mask"].detach().cpu().numpy()
-    outlier_mask = batch["outlier_mask"].detach().cpu().numpy()
-    curve_params = batch["curve_params"].detach().cpu().numpy()
-
-    # Create one plot row for each requested curve.
-    figure, axes = plt.subplots(
-        num_curves,
-        1,
-        figsize=(8, 3.2 * num_curves),
-        squeeze=False,
-        constrained_layout=True,
-    )
-    axes = axes[:, 0]
-    # Plot each curve using only its non-padding entries.
-    for index, axis in enumerate(axes):
-        valid = valid_mask[index]
-        x_for_curve = x_array[index, valid]
-        y_points_for_curve = y_points[index, valid]
-        y_true_for_curve = y_true[index, valid]
-        outliers = outlier_mask[index, valid]
-
-        # Sort by x for a connected true-curve line.
-        order = np.argsort(x_for_curve)
-        a, b, c = curve_params[index]
-        # Draw the clean curve and all observed noisy points.
-        axis.plot(
-            x_for_curve[order],
-            y_true_for_curve[order],
-            color="tab:blue",
-            label="True curve",
-        )
-        axis.scatter(
-            x_for_curve,
-            y_points_for_curve,
-            color="tab:orange",
-            s=24,
-            label="Y points",
-            zorder=3,
-        )
-        # Highlight outliers separately when this curve has any.
-        if np.any(outliers):
-            axis.scatter(
-                x_for_curve[outliers],
-                y_points_for_curve[outliers],
-                color="tab:red",
-                marker="x",
-                s=48,
-                label="Outliers",
-                zorder=4,
-            )
-        # Add labels, grid, and legend to make the plot readable.
-        axis.set_title(f"Krzywa {index + 1}: a={a:.3f}, b={b:.3f}, c={c:.3f}")
-        axis.set_xlabel("x")
-        axis.set_ylabel("y")
-        axis.grid(True, alpha=0.25)
-        axis.legend()
-
-    # Save the figure only when a path was provided.
-    if save_path is not None:
-        save_path = Path(save_path)
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(save_path, dpi=160, bbox_inches="tight")
-    # Display the figure only when requested.
-    if show:
-        plt.show()
-    # Return the figure objects so the caller can customize or close them.
-    return figure, axes
-
 
 #########################################################################
 # Generate and save the datasets when this file is run directly

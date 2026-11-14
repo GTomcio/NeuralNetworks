@@ -58,7 +58,7 @@ def load_dataset(split: str, batch_size: int) -> DataLoader:
 ##################################################################################
 #define pointFeatures nn
 class pointFeatures(nn.Module):
-    def __init__(self, feature_size: int = 64):
+    def __init__(self, feature_size: int = 128):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(2, feature_size),
@@ -73,7 +73,7 @@ class pointFeatures(nn.Module):
 
 #define parameterPredictor nn
 class parameterPredictor(nn.Module):
-    def __init__(self, feature_size: int = 64):
+    def __init__(self, feature_size: int = 128):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(feature_size, feature_size),
