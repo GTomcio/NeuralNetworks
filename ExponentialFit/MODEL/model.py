@@ -44,7 +44,7 @@ def load_dataset():
       parameters = torch.load(
             parameters_path,
             map_location = DEVICE,
-            weights_only = False,
+            weights_only = True,
       )
 
       return curves, parameters
@@ -103,7 +103,7 @@ if __name__ == "__main__":
       valid_mask = curves["valid_mask"].to(DEVICE).bool()
 
       #construct a [curves, points, 2] tensor
-      inputs = torch.stack((x_points, y_points), dim=-1)\
+      inputs = torch.stack((x_points, y_points), dim=-1)
 
       #turn mask from [curves, points] to [curves, points, 1]
       mask = valid_mask.unsqueeze(-1)
